@@ -1,0 +1,18 @@
+Команды для обновления на сервере:
+
+cd ~/mesendger/telegram-clone
+
+# 1. Принудительно обновить код из GitHub
+git fetch origin --all
+git checkout main
+git reset --hard origin/master || git reset --hard origin/main
+
+# 2. Пересобрать клиент
+cd client-react
+npm install
+npm run build
+
+# Если ошибки остались, проверьте конкретные файлы:
+# grep -n "confirm(" client-react/src/components/AdminMobile.jsx | head -1
+# grep -n "import.*styled" client-react/src/components/AiAssistantModal.jsx | head -1
+
