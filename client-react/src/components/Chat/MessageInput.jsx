@@ -1,4 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { playNotificationSound } from '../../utils/notificationSound';
+import styled from 'styled-components';
+import { FiPaperclip, FiSmile, FiArrowRight, FiX, FiFileText, FiClock, FiChevronDown } from 'react-icons/fi';
+import { useApp } from '../../context/AppContext';
+import api from '../../services/api';
+import Emoji from '../Common/Emoji';
+import EmojiInput from '../Common/EmojiInput';
+import TemplatesQuickPicker from './TemplatesQuickPicker';
+import ScheduledMessageModal from './ScheduledMessageModal';
+
 // Простая функция debounce
 function debounce(func, wait) {
   let timeout;
@@ -11,16 +21,6 @@ function debounce(func, wait) {
     timeout = setTimeout(later, wait);
   };
 }
-
-import { playNotificationSound } from '../../utils/notificationSound';
-import styled from 'styled-components';
-import { FiPaperclip, FiSmile, FiArrowRight, FiX, FiFileText, FiClock, FiChevronDown } from 'react-icons/fi';
-import { useApp } from '../../context/AppContext';
-import api from '../../services/api';
-import Emoji from '../Common/Emoji';
-import EmojiInput from '../Common/EmojiInput';
-import TemplatesQuickPicker from './TemplatesQuickPicker';
-import ScheduledMessageModal from './ScheduledMessageModal';
 
 
 // === ИСПРАВЛЕНИЕ: Объявляем PollModalOverlay ДО его использования ===
@@ -668,6 +668,7 @@ export default function MessageInput({ isMobile = false }) {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [showTemplatesPicker, setShowTemplatesPicker] = useState(false);
+  const [deptTemplates, setDeptTemplates] = useState([]);
   
   // Состояния для планирования сообщений
   const [showScheduleModal, setShowScheduleModal] = useState(false);

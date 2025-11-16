@@ -149,7 +149,6 @@ export default function LikesModal({ open, onClose, likes = [], emoji, messageId
   const emojiSettings = useEmojiSettings();
   const customEmojiMap = useCustomEmojiMap();
   
-  if (!open) return null;
   // likes: только для выбранного emoji
   // emoji, messageId — для информации, если нужно
   // onClose — функция закрытия
@@ -174,6 +173,8 @@ export default function LikesModal({ open, onClose, likes = [], emoji, messageId
     }
   };
 
+  if (!open) return null;
+
   return (
     <Modal onClick={onClose}>
       <ModalContent onClick={(e) => e.stopPropagation()}>
@@ -185,7 +186,7 @@ export default function LikesModal({ open, onClose, likes = [], emoji, messageId
           <FiHeart color="#e74c3c" />
           Лайки {emoji ? (
             <span style={{fontSize:'1.2em',marginLeft:6}}>
-              {(customEmojiMap[emoji] || (useEmojiSettings().showStandardEmojis !== false && !JSON.parse(localStorage.getItem('emojiBlacklist')||'[]').includes(`std|${emoji}`) && EMOJI_TO_ICON[emoji])) ? (
+              {(customEmojiMap[emoji] || (emojiSettings.showStandardEmojis !== false && !JSON.parse(localStorage.getItem('emojiBlacklist')||'[]').includes(`std|${emoji}`) && EMOJI_TO_ICON[emoji])) ? (
                 <img 
                   src={customEmojiMap[emoji] || EMOJI_TO_ICON[emoji]} 
                   alt={emoji} 
@@ -228,7 +229,7 @@ export default function LikesModal({ open, onClose, likes = [], emoji, messageId
                   </UserDetails>
                 </UserInfo>
                 <LikeIcon>
-                  {(customEmojiMap[emoji] || (useEmojiSettings().showStandardEmojis !== false && !JSON.parse(localStorage.getItem('emojiBlacklist')||'[]').includes(`std|${emoji}`) && EMOJI_TO_ICON[emoji])) ? (
+                  {(customEmojiMap[emoji] || (emojiSettings.showStandardEmojis !== false && !JSON.parse(localStorage.getItem('emojiBlacklist')||'[]').includes(`std|${emoji}`) && EMOJI_TO_ICON[emoji])) ? (
                     <img 
                       src={customEmojiMap[emoji] || EMOJI_TO_ICON[emoji]} 
                       alt={emoji} 

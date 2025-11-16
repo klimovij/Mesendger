@@ -173,8 +173,6 @@ export default function LeavesWorktimeMobile({ open, onClose, token, onOpenMobil
   }, [open, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
 
-  if (!open) return null;
-
   // Отладка
   useEffect(() => {
     if (open) {
@@ -188,6 +186,8 @@ export default function LeavesWorktimeMobile({ open, onClose, token, onOpenMobil
       }, 500);
     }
   }, [open, token]);
+
+  if (!open) return null;
 
   return (
     <>

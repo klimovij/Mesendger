@@ -451,15 +451,15 @@ export default function UserSelectionModal() {
       return () => clearTimeout(retryTimeout);
     }
     
+    // Обработчик ошибок (вынесен наружу для использования в cleanup)
+    const handleError = (error) => {
+      console.error('❌ Socket error:', error);
+      setError('Ошибка получения пользователей');
+      setLoading(false);
+    };
+    
     if (window.socket) {
       window.socket.on('all_users', handleAllUsers);
-      
-      // Обработчик ошибок
-      const handleError = (error) => {
-        console.error('❌ Socket error:', error);
-        setError('Ошибка получения пользователей');
-        setLoading(false);
-      };
       window.socket.on('error', handleError);
       
       // Если модалка открыта, запрашиваем список пользователей
