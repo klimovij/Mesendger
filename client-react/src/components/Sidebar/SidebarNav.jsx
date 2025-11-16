@@ -273,7 +273,13 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
 
   // Безопасное создание портала с дополнительными проверками
   const createSafePortal = (component, condition) => {
-    if (!condition) return null;
+    if (!condition) {
+      // Отладка: логируем только если это мобильная модалка
+      if (component && component.type && component.type.name && component.type.name.includes('Mobile')) {
+        console.log(`[createSafePortal] Condition is false for ${component.type.name}, condition:`, condition);
+      }
+      return null;
+    }
     if (!modalRoot) {
       console.warn('Modal root not initialized, skipping portal creation');
       return null;
@@ -284,6 +290,10 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
       if (!document.body.contains(modalRoot)) {
         console.warn('Modal root not in DOM, skipping portal creation');
         return null;
+      }
+      // Отладка для мобильных модалок
+      if (component && component.type && component.type.name && component.type.name.includes('Mobile')) {
+        console.log(`[createSafePortal] Creating portal for ${component.type.name}, condition:`, condition);
       }
       return ReactDOM.createPortal(component, modalRoot);
     } catch (error) {
@@ -833,16 +843,25 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
         window.dispatchEvent(new CustomEvent('show-ai'));
         break;
       case 'worktime':
+        console.log('[SidebarNav] Opening worktime modal, isMobile:', isMobile);
         if (isMobile) {
           requestAnimationFrame(() => {
+            console.log('[SidebarNav] Setting showWorkTimeModal to true (mobile)');
             setShowWorkTimeModal(true);
           });
         } else {
-          setTimeout(() => setShowWorkTimeModal(true), 0);
+          setTimeout(() => {
+            console.log('[SidebarNav] Setting showWorkTimeModal to true (desktop)');
+            setShowWorkTimeModal(true);
+          }, 0);
         }
         break;
       case 'leaves-worktime':
-        setTimeout(() => setShowLeavesWorktimeModal(true), 0);
+        console.log('[SidebarNav] Opening leaves-worktime modal, isMobile:', isMobile);
+        setTimeout(() => {
+          console.log('[SidebarNav] Setting showLeavesWorktimeModal to true');
+          setShowLeavesWorktimeModal(true);
+        }, 0);
         break;
       case 'admin':
         setTimeout(() => setShowAdminModal(true), 0);
