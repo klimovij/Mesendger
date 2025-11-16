@@ -131,6 +131,10 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // --- ДОБАВИТЬ ЭТОТ БЛОК ДЛЯ СТАТИКИ ЭМОДЗИ ---
 const emojiDir = path.resolve('C:/Users/Ksendz/web/mesendger(самый удачный)/mesendger/telegram-clone/client-react/src/assets/icons/Smile');
 app.use('/emojis', express.static(emojiDir));
+
+// Раздача статических файлов из собранного клиента (React build)
+const clientBuildPath = path.join(__dirname, '../client-react/build');
+app.use(express.static(clientBuildPath));
 // Теперь эмодзи доступны по URL: http://localhost:5000/emojis/имя_файла.png
 
 // ==================== СОЗДАНИЕ СЕРВЕРА ====================
@@ -5687,6 +5691,17 @@ app.get('/api/status', (req, res) => {
     timestamp: new Date(),
     uptime: process.uptime()
   });
+});
+
+// ==================== SPA: CATCH-ALL ROUTE ====================
+// Все остальные маршруты (не начинающиеся с /api) отдают index.html для SPA
+app.get('*', (req, res) => {
+  // Пропускаем API маршруты и статические файлы
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/emojis')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  // Отдаем index.html для всех остальных запросов (SPA routing)
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
 // ==================== ЗАПУСК СЕРВЕРА ====================
