@@ -273,7 +273,11 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
 
   // Безопасное создание портала с дополнительными проверками
   const createSafePortal = (component, condition) => {
-    if (!condition || !modalRoot) return null;
+    if (!condition) return null;
+    if (!modalRoot) {
+      console.warn('Modal root not initialized, skipping portal creation');
+      return null;
+    }
     
     try {
       // Проверяем, что modalRoot все еще находится в DOM
