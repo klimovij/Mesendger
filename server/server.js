@@ -4029,6 +4029,14 @@ io.on('connection', (socket) => {
     
       console.log('📝 Creating chat:', { name, type, userId: socket.userId });
     
+      // Проверяем, что пользователь существует в базе данных
+      const user = await db.getUserById(socket.userId);
+      if (!user) {
+        console.error('❌ Create chat error: User not found:', socket.userId);
+        socket.emit('error', 'Пользователь не найден в базе данных');
+        return;
+      }
+    
       const chatId = await db.createChat(name.trim(), type, socket.userId);
       await db.addUserToChat(chatId, socket.userId);
     
@@ -4084,14 +4092,24 @@ io.on('connection', (socket) => {
           const targetUser = await db.getUserById(targetUserId);
           const currentUser = await db.getUserById(socket.userId);
           
+          // Проверяем, что оба пользователя существуют
+          if (!currentUser) {
+            console.error('❌ Create private chat error: Current user not found:', socket.userId);
+            socket.emit('error', 'Пользователь не найден в базе данных');
+            return;
+          }
+          if (!targetUser) {
+            console.error('❌ Create private chat error: Target user not found:', targetUserId);
+            socket.emit('error', 'Целевой пользователь не найден в базе данных');
+            return;
+          }
+          
           // Формируем имя чата из имен участников
-          const targetName = targetUser ? 
-            (targetUser.username || `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim()) : 
-            'Неизвестный пользователь';
+          const targetName = targetUser.username || `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim() || 'Неизвестный пользователь';
           
           const chatName = targetName;
           
-          console.log(`🔗 Creating private chat between ${currentUser?.username || socket.userId} and ${targetName}`);
+          console.log(`🔗 Creating private chat between ${currentUser.username || socket.userId} and ${targetName}`);
           
           const chatId = await db.createChat(chatName, 'private', socket.userId);
           await db.addUserToChat(chatId, socket.userId);
