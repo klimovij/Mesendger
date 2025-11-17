@@ -152,19 +152,38 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Статическая раздача файлов
-// Добавляем middleware для логирования запросов к /uploads
+// ==================== СТАТИЧЕСКИЕ ФАЙЛЫ (ВАЖНО: ДО React build) ====================
+// КРИТИЧНО: Статические файлы должны обрабатываться ДО общего express.static для React build
+
+// Логирование всех GET-запросов для отладки
+app.use((req, res, next) => {
+  if (req.method === 'GET' && (req.path.startsWith('/uploads') || req.path.startsWith('/emojis'))) {
+    console.log(`🌐 GET request: ${req.path}`);
+  }
+  next();
+});
+
+// Статическая раздача файлов uploads (аватары, файлы)
+const uploadsPath = path.join(__dirname, '../uploads');
 app.use('/uploads', (req, res, next) => {
   console.log(`📁 Upload request: ${req.method} ${req.path}`);
   next();
 });
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadsPath, {
+  fallthrough: false, // Не передавать управление дальше, если файл не найден
+  setHeaders: (res, filePath) => {
+    // Устанавливаем правильные заголовки для изображений
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+    }
+  }
+}));
 
-// --- ДОБАВИТЬ ЭТОТ БЛОК ДЛЯ СТАТИКИ ЭМОДЗИ ---
+// Статическая раздача эмодзи
 const emojiDir = path.resolve('C:/Users/Ksendz/web/mesendger(самый удачный)/mesendger/telegram-clone/client-react/src/assets/icons/Smile');
 app.use('/emojis', express.static(emojiDir));
 
-// Раздача статических файлов из собранного клиента (React build)
+// Раздача статических файлов из собранного клиента (React build) - В САМОМ КОНЦЕ
 const clientBuildPath = path.join(__dirname, '../client-react/build');
 app.use(express.static(clientBuildPath));
 // Теперь эмодзи доступны по URL: http://localhost:5000/emojis/имя_файла.png
