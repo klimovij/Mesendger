@@ -402,15 +402,32 @@ if (!fs.existsSync(uploadsDir)) {
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Если это аватар — кладём в avatarsDir, иначе в uploadsDir
-    if (req.originalUrl && req.originalUrl.indexOf('/api/upload-avatar') !== -1) {
-      cb(null, avatarsDir);
-    } else {
-      cb(null, uploadsDir);
+    // Проверяем по URL или по fieldname
+    const isAvatar = (req.originalUrl && req.originalUrl.indexOf('/api/upload-avatar') !== -1) || 
+                     (file.fieldname === 'avatar');
+    
+    const targetDir = isAvatar ? avatarsDir : uploadsDir;
+    
+    // Убеждаемся, что папка существует
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      console.log('📁 Created directory:', targetDir);
     }
+    
+    console.log('📁 Multer destination:', { 
+      isAvatar, 
+      fieldname: file.fieldname, 
+      originalUrl: req.originalUrl,
+      targetDir 
+    });
+    
+    cb(null, targetDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+    console.log('📝 Multer filename:', filename);
+    cb(null, filename);
   }
 });
 
@@ -1606,6 +1623,21 @@ app.post('/api/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id, employee_id: employee.id, first_name, last_name, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     await withSqliteRetry(() => db.setUserToken(user.id, token));
     
+    // Проверяем существование файла аватара
+    let avatarUrl = user.avatar || employee.avatar_url || '';
+    if (avatarUrl) {
+      // Если путь относительный (начинается с /uploads), проверяем существование файла
+      if (avatarUrl.startsWith('/uploads/')) {
+        const filePath = path.join(__dirname, '..', avatarUrl);
+        if (!fs.existsSync(filePath)) {
+          console.warn('⚠️ Avatar file not found:', filePath, 'for user:', user.id);
+          // Очищаем несуществующий путь из базы данных
+          await db.setUserAvatar(user.id, '');
+          avatarUrl = '';
+        }
+      }
+    }
+    
     res.json({
       token,
       user: {
@@ -1613,7 +1645,7 @@ app.post('/api/login', async (req, res) => {
         employee_id: employee.id,
         first_name,
         last_name,
-        avatarUrl: user.avatar || employee.avatar_url || '',
+        avatarUrl,
         role: user.role,
         department: employee.department || ''
       },
@@ -1656,9 +1688,25 @@ app.post('/api/upload-avatar', authenticateToken, upload.single('avatar'), async
     const userId = req.user.userId;
     if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
     
+    // Логируем информацию о загруженном файле
+    console.log('📸 Avatar upload:', {
+      filename: req.file.filename,
+      path: req.file.path,
+      destination: req.file.destination,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+    
+    // Проверяем, что файл действительно существует
+    if (!fs.existsSync(req.file.path)) {
+      console.error('❌ Avatar file not found at path:', req.file.path);
+      return res.status(500).json({ error: 'Файл не был сохранен на сервере' });
+    }
+    
     // Сохраняем путь с учётом новой папки
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     await db.setUserAvatar(userId, avatarUrl);
+    console.log('✅ Avatar saved to DB:', { userId, avatarUrl });
     res.json({ avatarUrl });
   } catch (err) {
     console.error('Ошибка загрузки аватара:', err);
