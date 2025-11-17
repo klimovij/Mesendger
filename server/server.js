@@ -1529,13 +1529,24 @@ app.post('/api/register', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Registration error:', error);
+    console.error('❌ Registration error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
     
     // Проверяем, является ли ошибка нарушением уникального ограничения
     if (error.code === 'SQLITE_CONSTRAINT' && error.message.includes('UNIQUE constraint failed: users.username')) {
       return res.status(400).json({ error: 'Пользователь с таким именем уже существует. Попробуйте еще раз.' });
     }
     
-    res.status(500).json({ error: 'Ошибка сервера при регистрации' });
+    // Проверяем, является ли ошибка отсутствием колонки
+    if (error.message && error.message.includes('no such column')) {
+      console.error('❌ Database schema mismatch! Missing column:', error.message);
+      return res.status(500).json({ error: 'Ошибка структуры базы данных. Обратитесь к администратору.' });
+    }
+    
+    res.status(500).json({ error: 'Ошибка сервера при регистрации', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
   }
 });
 
