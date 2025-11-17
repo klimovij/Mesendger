@@ -61,30 +61,33 @@ db.db.run(`ALTER TABLE tasks ADD COLUMN completedAt TEXT`, function(err) {
 });
 
 // КРИТИЧЕСКАЯ МИГРАЦИЯ: добавляем колонки birth_day, birth_month, birth_year в таблицу employees
-// Выполняем синхронно при старте сервера, чтобы гарантировать их наличие
-db.db.serialize(() => {
-  db.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, function(err) {
-    if (err && !err.message.includes('duplicate column name') && !err.message.includes('no such column')) {
-      console.error('❌ Migration error (birth_day):', err);
-    } else if (!err) {
-      console.log('✅ Migration: birth_day column added to employees table');
-    }
+// Миграция теперь выполняется в database.js в методе init() для гарантии выполнения
+// Здесь оставляем только проверку на случай, если миграция не выполнилась
+setTimeout(() => {
+  db.db.serialize(() => {
+    db.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, function(err) {
+      if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
+        console.error('❌ Migration error (birth_day):', err);
+      } else if (!err) {
+        console.log('✅ Migration (server.js): birth_day column added to employees table');
+      }
+    });
+    db.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, function(err) {
+      if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
+        console.error('❌ Migration error (birth_month):', err);
+      } else if (!err) {
+        console.log('✅ Migration (server.js): birth_month column added to employees table');
+      }
+    });
+    db.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, function(err) {
+      if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
+        console.error('❌ Migration error (birth_year):', err);
+      } else if (!err) {
+        console.log('✅ Migration (server.js): birth_year column added to employees table');
+      }
+    });
   });
-  db.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, function(err) {
-    if (err && !err.message.includes('duplicate column name') && !err.message.includes('no such column')) {
-      console.error('❌ Migration error (birth_month):', err);
-    } else if (!err) {
-      console.log('✅ Migration: birth_month column added to employees table');
-    }
-  });
-  db.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, function(err) {
-    if (err && !err.message.includes('duplicate column name') && !err.message.includes('no such column')) {
-      console.error('❌ Migration error (birth_year):', err);
-    } else if (!err) {
-      console.log('✅ Migration: birth_year column added to employees table');
-    }
-  });
-});
+}, 1000); // Небольшая задержка для гарантии выполнения после init()
 
 // Загружаем переменные окружения из файла env в папке server
 require('dotenv').config({ path: path.resolve(__dirname, 'env') });
