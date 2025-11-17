@@ -170,7 +170,6 @@ app.use('/uploads', (req, res, next) => {
   next();
 });
 app.use('/uploads', express.static(uploadsPath, {
-  fallthrough: false, // Не передавать управление дальше, если файл не найден
   setHeaders: (res, filePath) => {
     // Устанавливаем правильные заголовки для изображений
     if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif')) {

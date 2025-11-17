@@ -68,7 +68,12 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
     setShowGeneralCalendar(value);
   }, []);
   const [isMobile, setIsMobile] = useState(() => {
-    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const width = window.innerWidth;
+    const isMobileWidth = width <= 768;
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const result = isMobileWidth || isMobileUA;
+    console.log('[SidebarNav] Initial isMobile check:', { width, isMobileWidth, isMobileUA, result, userAgent: navigator.userAgent });
+    return result;
   });
   const [showLeaveCalendar, setShowLeaveCalendar] = useState(false);
   const [showNewsModal, setShowNewsModal] = useState(false);
@@ -273,31 +278,34 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
 
   // Безопасное создание портала с дополнительными проверками
   const createSafePortal = (component, condition) => {
+    const componentName = component?.type?.name || component?.type?.displayName || 'Unknown';
+    const isMobileComponent = componentName.includes('Mobile');
+    
     if (!condition) {
       // Отладка: логируем только если это мобильная модалка
-      if (component && component.type && component.type.name && component.type.name.includes('Mobile')) {
-        console.log(`[createSafePortal] Condition is false for ${component.type.name}, condition:`, condition);
+      if (isMobileComponent) {
+        console.log(`[createSafePortal] ❌ Condition is false for ${componentName}, condition:`, condition, 'isMobile:', isMobile);
       }
       return null;
     }
     if (!modalRoot) {
-      console.warn('Modal root not initialized, skipping portal creation');
+      console.warn('[createSafePortal] ❌ Modal root not initialized, skipping portal creation');
       return null;
     }
     
     try {
       // Проверяем, что modalRoot все еще находится в DOM
       if (!document.body.contains(modalRoot)) {
-        console.warn('Modal root not in DOM, skipping portal creation');
+        console.warn('[createSafePortal] ❌ Modal root not in DOM, skipping portal creation');
         return null;
       }
       // Отладка для мобильных модалок
-      if (component && component.type && component.type.name && component.type.name.includes('Mobile')) {
-        console.log(`[createSafePortal] Creating portal for ${component.type.name}, condition:`, condition);
+      if (isMobileComponent) {
+        console.log(`[createSafePortal] ✅ Creating portal for ${componentName}, condition:`, condition, 'isMobile:', isMobile, 'modalRoot:', modalRoot);
       }
       return ReactDOM.createPortal(component, modalRoot);
     } catch (error) {
-      console.warn('Failed to create portal:', error);
+      console.warn('[createSafePortal] ❌ Failed to create portal:', error, 'component:', componentName);
       return null;
     }
   };
@@ -357,7 +365,12 @@ export default function SidebarNav({ onCloseMobileSidebar, onOpenMobileSidebar }
   // Отслеживание изменения размера окна для определения мобильного устройства
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+      const width = window.innerWidth;
+      const isMobileWidth = width <= 768;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const result = isMobileWidth || isMobileUA;
+      console.log('[SidebarNav] Resize - isMobile check:', { width, isMobileWidth, isMobileUA, result });
+      setIsMobile(result);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
