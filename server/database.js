@@ -2206,6 +2206,9 @@ class Database {
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
         birthday TEXT,
+        birth_day INTEGER,
+        birth_month INTEGER,
+        birth_year INTEGER,
         avatar_url TEXT,
         department TEXT
       )`);
@@ -2213,6 +2216,10 @@ class Database {
       this.db.run(`ALTER TABLE employees ADD COLUMN avatar_url TEXT`, () => {});
       // Добавить поле department для старых баз
       this.db.run(`ALTER TABLE employees ADD COLUMN department TEXT`, () => {});
+      // Добавить поля birth_day, birth_month, birth_year для старых баз
+      this.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, () => {});
+      this.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, () => {});
+      this.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, () => {});
 
       // Таблица быстрых шаблонов сообщений по департаментам
       this.db.run(`
