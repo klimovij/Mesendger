@@ -2213,13 +2213,39 @@ class Database {
         department TEXT
       )`);
       // Добавить поле avatar_url для старых баз
-      this.db.run(`ALTER TABLE employees ADD COLUMN avatar_url TEXT`, () => {});
+      this.db.run(`ALTER TABLE employees ADD COLUMN avatar_url TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('❌ Migration error (avatar_url):', err);
+        }
+      });
       // Добавить поле department для старых баз
-      this.db.run(`ALTER TABLE employees ADD COLUMN department TEXT`, () => {});
+      this.db.run(`ALTER TABLE employees ADD COLUMN department TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('❌ Migration error (department):', err);
+        }
+      });
       // Добавить поля birth_day, birth_month, birth_year для старых баз
-      this.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, () => {});
-      this.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, () => {});
-      this.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, () => {});
+      this.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('❌ Migration error (birth_day):', err);
+        } else if (!err) {
+          console.log('✅ Migration: birth_day column added to employees table');
+        }
+      });
+      this.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('❌ Migration error (birth_month):', err);
+        } else if (!err) {
+          console.log('✅ Migration: birth_month column added to employees table');
+        }
+      });
+      this.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('❌ Migration error (birth_year):', err);
+        } else if (!err) {
+          console.log('✅ Migration: birth_year column added to employees table');
+        }
+      });
 
       // Таблица быстрых шаблонов сообщений по департаментам
       this.db.run(`
