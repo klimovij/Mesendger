@@ -110,13 +110,6 @@ class Database {
     this.db = new sqlite3.Database('./messenger.db');
     this.db.configure('busyTimeout', 30000); // ожидание до 30 секунд
     this.init();
-
-    // Миграция: добавить поля poll_votes и poll_voters для поддержки опросов (отключено для избежания блокировки БД)
-    // setTimeout(() => {
-    //   this.db.run(`ALTER TABLE messages ADD COLUMN poll_options TEXT`, () => {});
-    //   this.db.run(`ALTER TABLE messages ADD COLUMN poll_votes TEXT`, () => {});
-    //   this.db.run(`ALTER TABLE messages ADD COLUMN poll_voters TEXT`, () => {});
-    // }, 1000);
   }
 
   // Установить/обновить роль пользователя
@@ -2548,6 +2541,55 @@ class Database {
           console.error('❌ Migration error (is_pinned):', err);
         } else if (!err) {
           console.log('✅ Migration: is_pinned column added to messages table');
+        }
+      });
+
+      // Миграция: добавляем поля poll_options, poll_votes, poll_voters для поддержки опросов
+      this.db.all("PRAGMA table_info(messages)", (err, columns) => {
+        if (err) {
+          console.error('❌ Migration error (checking messages columns):', err);
+          return;
+        }
+        
+        const columnNames = columns.map(col => col.name);
+        const needsPollOptions = !columnNames.includes('poll_options');
+        const needsPollVotes = !columnNames.includes('poll_votes');
+        const needsPollVoters = !columnNames.includes('poll_voters');
+        
+        if (needsPollOptions) {
+          this.db.run(`ALTER TABLE messages ADD COLUMN poll_options TEXT`, (err) => {
+            if (err) {
+              console.error('❌ Migration error (poll_options):', err);
+            } else {
+              console.log('✅ Migration: poll_options column added to messages table');
+            }
+          });
+        } else {
+          console.log('✅ Migration: poll_options column already exists');
+        }
+
+        if (needsPollVotes) {
+          this.db.run(`ALTER TABLE messages ADD COLUMN poll_votes TEXT`, (err) => {
+            if (err) {
+              console.error('❌ Migration error (poll_votes):', err);
+            } else {
+              console.log('✅ Migration: poll_votes column added to messages table');
+            }
+          });
+        } else {
+          console.log('✅ Migration: poll_votes column already exists');
+        }
+
+        if (needsPollVoters) {
+          this.db.run(`ALTER TABLE messages ADD COLUMN poll_voters TEXT`, (err) => {
+            if (err) {
+              console.error('❌ Migration error (poll_voters):', err);
+            } else {
+              console.log('✅ Migration: poll_voters column added to messages table');
+            }
+          });
+        } else {
+          console.log('✅ Migration: poll_voters column already exists');
         }
       });
 
