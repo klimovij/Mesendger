@@ -378,14 +378,34 @@ function PollMessage({ message, userId, participants }) {
   const [voters, setVoters] = useState(message.pollVoters || []);
   const [closed, setClosed] = useState(message.pollClosed || false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!window.socket) return;
     const update = (data) => {
       if (data.messageId === message.id) {
+        // Обработка ошибок
+        if (data.error) {
+          console.error('❌ Poll update error:', data.error);
+          setError(data.error);
+          setLoading(false);
+          // Откатываем изменения при ошибке
+          // Восстанавливаем предыдущее состояние из message
+          setSelected(null);
+          setVotes(message.pollVotes || {});
+          setVoters(message.pollVoters || []);
+          // Скрываем ошибку через 5 секунд
+          setTimeout(() => setError(null), 5000);
+          return;
+        }
+        
+        // Успешное обновление
+        setError(null);
         setVotes(data.pollVotes || {});
         setVoters(data.pollVoters || []);
         setClosed(!!data.pollClosed);
+        setLoading(false);
+        
         // Если пришло обновление голосов, но участников нет — запросим их
         const chatId = state.currentChat?.id || message.chat_id;
         if ((!participants || participants.length === 0) && chatId && window.socket) {
@@ -424,7 +444,7 @@ function PollMessage({ message, userId, participants }) {
   useEffect(() => {
     if (!userId) return;
     for (const [idx, votersList] of Object.entries(votes)) {
-      if (Array.isArray(votersList) && votersList.includes(userId)) {
+      if (Array.isArray(votersList) && votersList.some(id => String(id) === String(userId))) {
         setSelected(Number(idx));
         break;
       }
@@ -433,12 +453,12 @@ function PollMessage({ message, userId, participants }) {
 
   // Получаем всех проголосовавших из голосов
   const allVotersFromVotes = Object.values(votes).flat().filter(Boolean);
-  const uniqueVoters = [...new Set(allVotersFromVotes)]; // убираем дубликаты
+  const uniqueVoters = [...new Set(allVotersFromVotes.map(id => String(id)))]; // убираем дубликаты
   
   const totalParticipants = participants?.length || 0;
   const totalVotes = Object.values(votes).reduce((acc, arr) => acc + (arr?.length || 0), 0);
-  const actualVoters = uniqueVoters.length > 0 ? uniqueVoters : voters;
-  const notVoted = participants ? participants.filter(u => !actualVoters.includes(u.id)) : [];
+  const actualVoters = uniqueVoters.length > 0 ? uniqueVoters : voters.map(id => String(id));
+  const notVoted = participants ? participants.filter(u => !actualVoters.some(id => String(id) === String(u.id))) : [];
 
   // Отладка
   console.log('Poll State:', {
@@ -452,7 +472,7 @@ function PollMessage({ message, userId, participants }) {
   });
 
   const handleVote = async (idx) => {
-    if (closed) return;
+    if (closed || loading) return;
     
     // Если пользователь уже выбрал этот вариант, ничего не делаем
     if (selected === idx) return;
@@ -464,10 +484,15 @@ function PollMessage({ message, userId, participants }) {
       messageId: message.id
     });
     
+    // Сохраняем предыдущее состояние для возможного отката
+    const previousSelected = selected;
+    const previousVotes = { ...votes };
+    const previousVoters = [...voters];
+    
     setLoading(true);
+    setError(null);
     
     // Немедленно обновляем UI
-    const previousSelected = selected;
     setSelected(idx);
     
     // Обновляем голоса локально
@@ -477,6 +502,9 @@ function PollMessage({ message, userId, participants }) {
       // Убираем голос с предыдущего варианта
       if (previousSelected !== null && newVotes[previousSelected]) {
         newVotes[previousSelected] = newVotes[previousSelected].filter(id => String(id) !== String(userId));
+        if (newVotes[previousSelected].length === 0) {
+          delete newVotes[previousSelected];
+        }
         console.log('Убрали голос с варианта', previousSelected);
       }
       
@@ -494,7 +522,7 @@ function PollMessage({ message, userId, participants }) {
     });
     
     // Добавляем пользователя в список проголосовавших
-    if (userId && !voters.includes(userId)) {
+    if (userId && !voters.some(id => String(id) === String(userId))) {
       setVoters(prev => [...prev, userId]);
     }
     
@@ -506,14 +534,19 @@ function PollMessage({ message, userId, participants }) {
           optionIdx: idx
         });
         console.log('Отправили на сервер');
+      } else {
+        throw new Error('Соединение с сервером не установлено');
       }
     } catch (error) {
       console.error('Ошибка при голосовании:', error);
       // Откатываем изменения при ошибке
       setSelected(previousSelected);
-    } finally {
+      setVotes(previousVotes);
+      setVoters(previousVoters);
+      setError(error.message || 'Ошибка при отправке голоса');
       setLoading(false);
     }
+    // Примечание: setLoading(false) вызывается в useEffect при получении poll_update
   };
 
   return (
@@ -558,6 +591,31 @@ function PollMessage({ message, userId, participants }) {
           <span className="stat-count">{notVoted.length}</span>
         </div>
       </PollStats>
+      
+      {error && (
+        <div style={{
+          marginTop: '0.5rem',
+          padding: '0.5rem',
+          background: '#fee',
+          color: '#c33',
+          borderRadius: '4px',
+          fontSize: '0.875rem'
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
+      
+      {loading && (
+        <div style={{
+          marginTop: '0.5rem',
+          padding: '0.5rem',
+          color: '#666',
+          fontSize: '0.875rem',
+          textAlign: 'center'
+        }}>
+          Отправка голоса...
+        </div>
+      )}
       
       <div style={{marginTop: '1rem'}}>
         <PollVotersToggle onClick={handleToggleVoted}>

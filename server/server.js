@@ -3709,6 +3709,7 @@ io.on('connection', (socket) => {
     return (...args) => {
       if (!socket.userId) {
         console.log('❌ Unauthenticated socket event attempt:', args);
+        console.log('❌ Socket userId:', socket.userId, 'Socket id:', socket.id);
         socket.emit('auth_error', 'Пользователь не аутентифицирован');
         return;
       }
@@ -3719,44 +3720,124 @@ io.on('connection', (socket) => {
   // --- Голосование по опросу в чате ---
   socket.on('vote_poll', requireAuth(async ({ messageId, optionIdx }) => {
     try {
+      console.log('🗳️ vote_poll received:', { messageId, optionIdx, userId: socket.userId });
+      
+      // Валидация входных данных
+      if (!messageId) {
+        console.log('❌ vote_poll: messageId не указан');
+        socket.emit('poll_update', { messageId: null, error: 'ID сообщения не указан' });
+        return;
+      }
+      
+      if (optionIdx === undefined || optionIdx === null) {
+        console.log('❌ vote_poll: optionIdx не указан', { optionIdx });
+        socket.emit('poll_update', { messageId, error: 'Вариант ответа не указан' });
+        return;
+      }
+      
+      if (!socket.userId) {
+        console.log('❌ vote_poll: пользователь не аутентифицирован');
+        socket.emit('poll_update', { messageId, error: 'Пользователь не аутентифицирован' });
+        return;
+      }
+      
+      // Преобразуем optionIdx в строку для консистентности (ключи объекта - строки)
+      const optionKey = String(optionIdx);
+      
       // Получаем сообщение
       const msg = await db.getMessageById(messageId);
       if (!msg || msg.message_type !== 'poll') {
+        console.log('❌ vote_poll: опрос не найден', { messageId, messageType: msg?.message_type });
         socket.emit('poll_update', { messageId, error: 'Опрос не найден' });
+        return;
+      }
+      
+      // Парсим опции опроса для валидации
+      let pollOptions = [];
+      try {
+        pollOptions = msg.poll_options ? JSON.parse(msg.poll_options) : [];
+      } catch (e) {
+        console.error('❌ vote_poll: ошибка парсинга poll_options', e);
+        pollOptions = [];
+      }
+      
+      // Проверяем, что optionIdx находится в допустимых пределах
+      if (pollOptions.length > 0 && (Number(optionIdx) < 0 || Number(optionIdx) >= pollOptions.length)) {
+        console.log('❌ vote_poll: недопустимый индекс варианта', { optionIdx, pollOptionsLength: pollOptions.length });
+        socket.emit('poll_update', { messageId, error: 'Недопустимый вариант ответа' });
         return;
       }
       
       // Парсим текущие голоса и проголосовавших
       let pollVotes = {};
       let pollVoters = [];
-      try { pollVotes = msg.poll_votes ? JSON.parse(msg.poll_votes) : {}; } catch { pollVotes = {}; }
-      try { pollVoters = msg.poll_voters ? JSON.parse(msg.poll_voters) : []; } catch { pollVoters = []; }
+      try { 
+        pollVotes = msg.poll_votes ? JSON.parse(msg.poll_votes) : {}; 
+      } catch (e) { 
+        console.error('❌ vote_poll: ошибка парсинга poll_votes', e);
+        pollVotes = {}; 
+      }
+      try { 
+        pollVoters = msg.poll_voters ? JSON.parse(msg.poll_voters) : []; 
+      } catch (e) { 
+        console.error('❌ vote_poll: ошибка парсинга poll_voters', e);
+        pollVoters = []; 
+      }
+      
+      // Убеждаемся, что pollVotes - это объект
+      if (typeof pollVotes !== 'object' || Array.isArray(pollVotes)) {
+        pollVotes = {};
+      }
+      
+      // Убеждаемся, что pollVoters - это массив
+      if (!Array.isArray(pollVoters)) {
+        pollVoters = [];
+      }
+      
+      console.log('🗳️ vote_poll: текущие голоса', { pollVotes, pollVoters, userId: socket.userId, optionKey });
       
       // Переголосование: удаляем предыдущий голос пользователя из всех вариантов
       Object.keys(pollVotes).forEach(k => {
-        pollVotes[k] = (pollVotes[k] || []).filter(id => id !== socket.userId);
-        if (pollVotes[k].length === 0) delete pollVotes[k];
+        if (Array.isArray(pollVotes[k])) {
+          pollVotes[k] = pollVotes[k].filter(id => String(id) !== String(socket.userId));
+          if (pollVotes[k].length === 0) {
+            delete pollVotes[k];
+          }
+        }
       });
 
       // Добавляем голос в новый вариант
-      if (!pollVotes[optionIdx]) pollVotes[optionIdx] = [];
-      if (!pollVotes[optionIdx].includes(socket.userId)) {
-        pollVotes[optionIdx].push(socket.userId);
+      if (!pollVotes[optionKey]) {
+        pollVotes[optionKey] = [];
+      }
+      if (!Array.isArray(pollVotes[optionKey])) {
+        pollVotes[optionKey] = [];
+      }
+      if (!pollVotes[optionKey].some(id => String(id) === String(socket.userId))) {
+        pollVotes[optionKey].push(socket.userId);
       }
 
       // Обновляем список проголосовавших (уникально)
-      if (!pollVoters.includes(socket.userId)) {
+      if (!pollVoters.some(id => String(id) === String(socket.userId))) {
         pollVoters.push(socket.userId);
       }
       
+      console.log('🗳️ vote_poll: новые голоса', { pollVotes, pollVoters });
+      
       // Сохраняем в базе
-      await db.updatePoll(messageId, JSON.stringify(msg.poll_options ? JSON.parse(msg.poll_options) : []), JSON.stringify(pollVotes), JSON.stringify(pollVoters));
+      const pollOptionsStr = JSON.stringify(pollOptions);
+      const pollVotesStr = JSON.stringify(pollVotes);
+      const pollVotersStr = JSON.stringify(pollVoters);
+      
+      await db.updatePoll(messageId, pollOptionsStr, pollVotesStr, pollVotersStr);
       
       // Отправляем обновление всем участникам чата
       io.emit('poll_update', { messageId, pollVotes, pollVoters });
+      console.log('✅ vote_poll: обновление отправлено');
     } catch (error) {
       console.error('❌ poll_vote error:', error);
-      socket.emit('poll_update', { messageId, error: error.message });
+      console.error('❌ poll_vote error stack:', error.stack);
+      socket.emit('poll_update', { messageId, error: error.message || 'Ошибка при голосовании' });
     }
   }));
   
@@ -3811,20 +3892,22 @@ io.on('connection', (socket) => {
   }
 
   // 1. Handshake auth
-  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      onSocketAuthenticated(socket, decoded);
-    } catch (error) {
-      console.error('❌ Authentication error on connect:', error);
-      socket.emit('auth_error', 'Недействительный токен');
-      // Не отключаем сразу, даем возможность повторной аутентификации
+  (async () => {
+    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        await onSocketAuthenticated(socket, decoded);
+      } catch (error) {
+        console.error('❌ Authentication error on connect:', error);
+        socket.emit('auth_error', 'Недействительный токен');
+        // Не отключаем сразу, даем возможность повторной аутентификации
+      }
+    } else {
+      console.log('⚠️ No token provided on connect');
+      socket.emit('need_auth');
     }
-  } else {
-    console.log('⚠️ No token provided on connect');
-    socket.emit('need_auth');
-  }
+  })();
 
   // Глобальный логгер всех событий сокета для отладки
   const origOn = socket.on;
