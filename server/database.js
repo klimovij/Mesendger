@@ -2225,29 +2225,53 @@ class Database {
         }
       });
       // Добавить поля birth_day, birth_month, birth_year для старых баз
-      // ВАЖНО: Выполняем синхронно в serialize() для гарантии выполнения
-      this.db.serialize(() => {
-        this.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, (err) => {
-          if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
-            console.error('❌ Migration error (birth_day):', err);
-          } else if (!err) {
-            console.log('✅ Migration: birth_day column added to employees table');
-          }
-        });
-        this.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, (err) => {
-          if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
-            console.error('❌ Migration error (birth_month):', err);
-          } else if (!err) {
-            console.log('✅ Migration: birth_month column added to employees table');
-          }
-        });
-        this.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, (err) => {
-          if (err && !err.message.includes('duplicate column name') && !err.message.includes('duplicate column')) {
-            console.error('❌ Migration error (birth_year):', err);
-          } else if (!err) {
-            console.log('✅ Migration: birth_year column added to employees table');
-          }
-        });
+      // Проверяем существование колонок перед добавлением
+      this.db.all("PRAGMA table_info(employees)", (err, columns) => {
+        if (err) {
+          console.error('❌ Migration error (checking columns):', err);
+          return;
+        }
+        
+        const columnNames = columns.map(col => col.name);
+        const needsBirthDay = !columnNames.includes('birth_day');
+        const needsBirthMonth = !columnNames.includes('birth_month');
+        const needsBirthYear = !columnNames.includes('birth_year');
+        
+        if (needsBirthDay) {
+          this.db.run(`ALTER TABLE employees ADD COLUMN birth_day INTEGER`, (err) => {
+            if (err) {
+              console.error('❌ Migration error (birth_day):', err);
+            } else {
+              console.log('✅ Migration: birth_day column added to employees table');
+            }
+          });
+        } else {
+          console.log('✅ Migration: birth_day column already exists');
+        }
+        
+        if (needsBirthMonth) {
+          this.db.run(`ALTER TABLE employees ADD COLUMN birth_month INTEGER`, (err) => {
+            if (err) {
+              console.error('❌ Migration error (birth_month):', err);
+            } else {
+              console.log('✅ Migration: birth_month column added to employees table');
+            }
+          });
+        } else {
+          console.log('✅ Migration: birth_month column already exists');
+        }
+        
+        if (needsBirthYear) {
+          this.db.run(`ALTER TABLE employees ADD COLUMN birth_year INTEGER`, (err) => {
+            if (err) {
+              console.error('❌ Migration error (birth_year):', err);
+            } else {
+              console.log('✅ Migration: birth_year column added to employees table');
+            }
+          });
+        } else {
+          console.log('✅ Migration: birth_year column already exists');
+        }
       });
 
       // Таблица быстрых шаблонов сообщений по департаментам
