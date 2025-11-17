@@ -1378,14 +1378,37 @@ class Database {
 
   async addEmployee({ first_name, last_name, birth_day, birth_month, birth_year, avatar_url, department }) {
     return new Promise((resolve, reject) => {
-      this.db.run(
-        'INSERT INTO employees (first_name, last_name, birth_day, birth_month, birth_year, avatar_url, department) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [first_name, last_name, birth_day, birth_month, birth_year, avatar_url, department || null],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
+      // Принудительно обновляем схему перед запросом (на случай кеширования)
+      this.db.all("PRAGMA table_info(employees)", (err, columns) => {
+        if (err) {
+          console.error('❌ addEmployee: Error checking table schema:', err);
+          return reject(err);
         }
-      );
+        
+        const columnNames = columns.map(col => col.name);
+        console.log('🔍 addEmployee: Available columns:', columnNames);
+        
+        // Проверяем наличие необходимых колонок
+        if (!columnNames.includes('birth_day') || !columnNames.includes('birth_month') || !columnNames.includes('birth_year')) {
+          console.error('❌ addEmployee: Missing birth columns! birth_day:', columnNames.includes('birth_day'), 'birth_month:', columnNames.includes('birth_month'), 'birth_year:', columnNames.includes('birth_year'));
+          return reject(new Error('Missing birth columns in employees table'));
+        }
+        
+        // Выполняем INSERT
+        this.db.run(
+          'INSERT INTO employees (first_name, last_name, birth_day, birth_month, birth_year, avatar_url, department) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [first_name, last_name, birth_day, birth_month, birth_year, avatar_url, department || null],
+          function(err) {
+            if (err) {
+              console.error('❌ addEmployee: INSERT error:', err);
+              reject(err);
+            } else {
+              console.log('✅ addEmployee: Successfully inserted employee with ID:', this.lastID);
+              resolve(this.lastID);
+            }
+          }
+        );
+      });
     });
   }
 
