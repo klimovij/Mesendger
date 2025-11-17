@@ -3764,9 +3764,19 @@ io.on('connection', (socket) => {
 
   // Универсальная post-auth функция
   async function onSocketAuthenticated(socket, decoded) {
-    socket.userId = decoded.userId || decoded.id;
-    socket.username = decoded.username;
-    socket.role = decoded.role;
+    const userId = decoded.userId || decoded.id;
+    
+    // Проверяем, что пользователь существует в базе данных
+    const user = await db.getUserById(userId);
+    if (!user) {
+      console.error('❌ Authentication error: User not found in database:', userId, 'Token payload:', decoded);
+      socket.emit('auth_error', 'Пользователь не найден в базе данных. Пожалуйста, войдите заново.');
+      return;
+    }
+    
+    socket.userId = userId;
+    socket.username = user.username || decoded.username;
+    socket.role = user.role || decoded.role;
     
     console.log('✅ User authenticated:', {
       userId: socket.userId,
