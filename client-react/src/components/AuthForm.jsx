@@ -163,7 +163,7 @@ export default function AuthForm() {
         };
         localStorage.setItem('user', JSON.stringify(userObj));
         // После успешной регистрации загружаем аватар
-        let avatar_url = data.user.avatar_url || '';
+        let avatarUrl = data.user.avatarUrl || '';
         if (form.avatar) {
           const fd = new FormData();
           fd.append('avatar', form.avatar);
@@ -175,9 +175,9 @@ export default function AuthForm() {
           });
           const avatarData = await resAvatar.json();
           if (!resAvatar.ok) throw new Error(avatarData.error || 'Ошибка загрузки фото');
-          avatar_url = avatarData.avatarUrl;
+          avatarUrl = avatarData.avatarUrl;
           // Обновляем пользователя в localStorage
-          const user = { ...data.user, avatar_url };
+          const user = { ...data.user, avatarUrl };
           localStorage.setItem('user', JSON.stringify(user));
         }
         window.location.reload();

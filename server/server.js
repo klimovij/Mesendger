@@ -1550,7 +1550,7 @@ app.post('/api/register', async (req, res) => {
         employee_id: employee.id,
         first_name,
         last_name,
-        avatar_url: employee.avatar_url,
+        avatarUrl: employee.avatar_url || '',
         role: user.role,
         department: employee.department || ''
       },
